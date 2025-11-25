@@ -9,15 +9,16 @@ const PORT = process.env.PORT || 3000;
 // Middleware لقراءة JSON
 app.use(express.json());
 
-// Middleware لتسجيل الطلبات في log.txt
+// Middleware لتسجيل الطلبات في log.txt (اختياري)
 const logStream = fs.createWriteStream(path.join(__dirname, "log.txt"), { flags: "a" });
 app.use(morgan("combined", { stream: logStream }));
 
-// قراءة بيانات الكتب والمراجعات
-// قراءة بيانات الكتب والمراجعات
-const books = require("./data/books.json");      
+// قراءة بيانات الكتب والمراجعات بشكل صحيح
+const booksData = require("./data/books.json");
+const books = booksData.books;
 const reviewsData = require("./data/reviews.json");
-const reviews = reviewsData.reviews; // مهم جدا أن يكون هذا السطر موجود
+const reviews = reviewsData.reviews;
+
 
 // مسار اختبار أساسي
 app.get("/", (req, res) => {
@@ -25,7 +26,7 @@ app.get("/", (req, res) => {
 });
 
 /////////////////////////
-//  GET Routes
+// GET Routes
 /////////////////////////
 
 // (1) جميع الكتب
@@ -33,16 +34,14 @@ app.get("/books", (req, res) => {
   res.json(books);
 });
 
-// (2) كتاب واحد حسب ID
-app.get("/books/:id", (req, res) => {
-  const book = books.find(b => b.id === Number(req.params.id));
-  book ? res.json(book) : res.status(404).send("Book not found");
-});
+
 
 // (3) الكتب بين نطاق تاريخ
 app.get("/books/date/:start/:end", (req, res) => {
   const { start, end } = req.params;
-  const filtered = books.filter(b => b.datePublished >= start && b.datePublished <= end);
+  const filtered = books.filter(
+    b => b.datePublished >= start && b.datePublished <= end
+  );
   res.json(filtered);
 });
 
@@ -56,18 +55,32 @@ app.get("/books/top-rated", (req, res) => {
 
 // (5) الكتب المميزة
 app.get("/books/featured", (req, res) => {
-  res.json(books.filter(b => b.featured === true));
+  const featured = books.filter(b => b.featured === true);
+  res.json(featured);
+});
+
+// (2) كتاب واحد حسب ID
+app.get("/books/:id", (req, res) => {
+  const bookId = req.params.id.toString(); // المقارنة كسلسلة نصية
+  const book = books.find(b => b.id === bookId);
+  if (book) {
+    res.json(book);
+  } else {
+    res.status(404).send("Book not found");
+  }
 });
 
 // (6) جميع مراجعات كتاب معين
 app.get("/reviews/:bookId", (req, res) => {
-  const bookId = Number(req.params.bookId);
-  const list = reviews.filter(r => r.bookId === bookId);
+  const bookId = req.params.bookId.toString();
+  const list = reviews.filter(r => r.bookId.toString() === bookId);
   res.json(list);
 });
 
+
+
 /////////////////////////
-//  POST Routes
+// POST Routes
 /////////////////////////
 
 // Middleware للتحقق من المصادقة
@@ -80,7 +93,7 @@ function isAuthenticated(req, res, next) {
 // (1) إضافة كتاب جديد (محمية)
 app.post("/books", isAuthenticated, (req, res) => {
   const newBook = {
-    id: books.length + 1,
+    id: (books.length + 1).toString(),
     ...req.body
   };
   books.push(newBook);
@@ -90,7 +103,7 @@ app.post("/books", isAuthenticated, (req, res) => {
 // (2) إضافة مراجعة جديدة
 app.post("/reviews", (req, res) => {
   const newReview = {
-    id: reviews.length + 1,
+    id: `review-${reviews.length + 1}`,
     ...req.body
   };
   reviews.push(newReview);
